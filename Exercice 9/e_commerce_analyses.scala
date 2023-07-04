@@ -3,7 +3,7 @@ import org.apache.spark.sql.types.{TimestampType, DataTypes}
 import java.time.Duration
 
 // Create a SparkSession
-val spark = SparkSession.builder().appName("e-commerce").master("local").getOrCreate()
+val spark = SparkSession.builder().appName("e-commerce").config("spark.sql.hive.convertMetastoreOrc", "true").enableHiveSupport().master("local").getOrCreate()
 
 // Read CSV file into a DataFrame
 val csvPath = "/user/hadoop/olist_orders_dataset.csv"
@@ -71,6 +71,10 @@ val customer_state_most_orders = df.groupBy("customer_state").agg(count(col("ord
 println(s"the customer state with the most orders")
 customer_state_most_orders.show()
 
-
+// Save results in hive
+spark.catalog.setCurrentDatabase("e_commerce")
+customer_state_most_orders.write.format("orc").mode("overwrite").saveAsTable("customer_state_most_order")
+top_10_cities.write.format("orc").mode("overwrite").saveAsTable("top_10_cities")
+order_distribution.write.format("orc").mode("overwrite").saveAsTable("order_distribution")
 
 spark.stop()
