@@ -1,6 +1,11 @@
 import java.util.Properties
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
+
 import scala.collection.JavaConverters._
+import java.sql.{Connection, DriverManager}
+import io.circe._
+import io.circe.parser._
+
 
 object Consumer {
   def main(args: Array[String]): Unit = {
@@ -14,6 +19,17 @@ object Consumer {
     props.put(ConsumerConfig.GROUP_ID_CONFIG, "tv-shows")
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest") // Start consuming from the beginning of the topic
 
+
+
+    // Connect to postgres
+    val url = "jdbc:postgresql://IPADDRESS:PORT/DATABASE"
+    val username = ""
+    val password = ""
+
+    val connection: Connection = DriverManager.getConnection(url, username, password)
+    val statement = connection.createStatement()
+
+
     val consumer = new KafkaConsumer[String, String](props)
 
     // Subscribe to the topic
@@ -24,15 +40,30 @@ object Consumer {
       val records = consumer.poll(java.time.Duration.ofMillis(100))
 
       records.iterator().asScala.foreach { record =>
-        val key = record.key()
-        val value = record.value()
-        val partition = record.partition()
-        val offset = record.offset()
 
-        // Process the received record
-        println(s"Received record: key = $key, value = $value, partition = $partition, offset = $offset")
+        val value = record.value()
+        val json: Either[ParsingFailure, Json] = parse(value)
+        json match {
+          case Left(parseFailure) => println(s"Failed to parse JSON: $parseFailure")
+          case Right(jsonData) =>
+            val person: Either[Error, TvShows] = jsonData.as[TvShows]
+
+            person match {
+              case Left(decodingFailure) => println(s"Failed to decode JSON to Person: $decodingFailure")
+              case Right(shows) => {
+                println(s"Successfully parsed TvShows: $shows")
+                val title: String = shows.title.replace("'", " ")
+                val sql = s"INSERT INTO tvshows (rowID,id,title,year,age,IMDb,RottenTomatoes,isNetflix,isHulu,isPrimeVideo) VALUES ('${shows.rowID}','${shows.id}','$title','${shows.year}','${shows.age}','${shows.IMDb}','${shows.RottenTomatoes}','${shows.isNetflix}','${shows.isHulu}','${shows.isPrimeVideo}')"
+                statement.executeUpdate(sql)
+
+
+              }
+            }
+        }
       }
     }
+
+    connection.close()
   }
 
 }
