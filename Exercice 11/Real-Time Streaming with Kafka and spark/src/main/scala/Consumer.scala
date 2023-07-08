@@ -2,9 +2,10 @@ import java.util.Properties
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 
 import scala.collection.JavaConverters._
-import java.sql.{Connection, DriverManager}
+import java.sql.{Connection, DriverManager, SQLException}
 import io.circe._
 import io.circe.parser._
+import org.postgresql.util.PSQLException
 
 
 object Consumer {
@@ -23,8 +24,8 @@ object Consumer {
 
     // Connect to postgres
     val url = "jdbc:postgresql://IPADDRESS:PORT/DATABASE"
-    val username = ""
-    val password = ""
+    val username = "USERNAME"
+    val password = "PASSWORD"
 
     val connection: Connection = DriverManager.getConnection(url, username, password)
     val statement = connection.createStatement()
@@ -48,22 +49,32 @@ object Consumer {
           case Right(jsonData) =>
             val person: Either[Error, TvShows] = jsonData.as[TvShows]
 
+
             person match {
               case Left(decodingFailure) => println(s"Failed to decode JSON to Person: $decodingFailure")
               case Right(shows) => {
                 println(s"Successfully parsed TvShows: $shows")
                 val title: String = shows.title.replace("'", " ")
                 val sql = s"INSERT INTO tvshows (rowID,id,title,year,age,IMDb,RottenTomatoes,isNetflix,isHulu,isPrimeVideo) VALUES ('${shows.rowID}','${shows.id}','$title','${shows.year}','${shows.age}','${shows.IMDb}','${shows.RottenTomatoes}','${shows.isNetflix}','${shows.isHulu}','${shows.isPrimeVideo}')"
-                statement.executeUpdate(sql)
-
+                try {
+                  statement.executeUpdate(sql)
+                  println("Data inserted successfully!")
+                } catch {
+                  case e: PSQLException if e.getSQLState == "23505" =>
+                    println("Skipping duplicate key violation error.")
+                  case e: SQLException =>
+                    println("An unexpected SQL error occurred: " + e.getMessage)
+                }
 
               }
             }
         }
       }
-    }
 
+    }
+    statement.close()
     connection.close()
+
   }
 
 }

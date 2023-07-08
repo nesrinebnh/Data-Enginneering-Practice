@@ -67,7 +67,7 @@ object Producer {
         val updatedLines = lines.drop(1)
         lines = updatedLines
 
-        Thread.sleep(60000) // Sleep for 1 minute
+        Thread.sleep(1000) // Sleep for 1 minute
       }
 
     } catch {
