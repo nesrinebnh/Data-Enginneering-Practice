@@ -51,11 +51,11 @@ object Consumer {
 
 
             person match {
-              case Left(decodingFailure) => println(s"Failed to decode JSON to Person: $decodingFailure")
+              case Left(decodingFailure) => println(s"Failed to decode JSON to TvShows: $decodingFailure")
               case Right(shows) => {
                 println(s"Successfully parsed TvShows: $shows")
                 val title: String = shows.title.replace("'", " ")
-                val sql = s"INSERT INTO tvshows (rowID,id,title,year,age,IMDb,RottenTomatoes,isNetflix,isHulu,isPrimeVideo) VALUES ('${shows.rowID}','${shows.id}','$title','${shows.year}','${shows.age}','${shows.IMDb}','${shows.RottenTomatoes}','${shows.isNetflix}','${shows.isHulu}','${shows.isPrimeVideo}')"
+                val sql = s"INSERT INTO tvshows_stg (rowID,id,title,year,age,IMDb,RottenTomatoes,isNetflix,isHulu,isPrimeVideo) VALUES ('${shows.rowID}','${shows.id}','$title','${shows.year}','${shows.age}','${shows.IMDb}','${shows.RottenTomatoes}','${shows.isNetflix}','${shows.isHulu}','${shows.isPrimeVideo}')"
                 try {
                   statement.executeUpdate(sql)
                   println("Data inserted successfully!")
